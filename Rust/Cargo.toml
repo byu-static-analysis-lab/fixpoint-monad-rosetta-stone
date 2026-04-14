@@ -1,5 +1,6 @@
 [workspace]
 resolver = "2"
-members = ["fixpoint-monad"]
+members = ["abstract-definitional-interpreter","fixpoint-monad"]
 
 [workspace.dependencies]
+fixpoint-monad = { path = "./fixpoint-monad" }
