@@ -8,6 +8,7 @@ pub use monad::*;
 pub use state::*;
 pub use memo::*;
 
+/// Helper trait for how to make a memo-key
 pub trait MakeKey {
     fn make_key<S: AsRef<str>>(&self, prefix: S) -> String {
         format!("{}:{}", prefix.as_ref(), self.show())
@@ -118,6 +119,7 @@ impl<T: MakeKey> MakeKey for Vec<T> {
     }
 }
 
+/// Helper trait for unifying caching of values in the memotable
 pub trait Cachable: Hash + PartialEq + PartialOrd + Clone + Eq + Ord + Default {}
 
 impl Cachable for bool {}

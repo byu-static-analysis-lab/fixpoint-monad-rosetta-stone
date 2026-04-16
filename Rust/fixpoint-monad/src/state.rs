@@ -3,6 +3,7 @@ use std::fmt::Display;
 use crate::Cachable;
 use crate::monad::Continuation;
 
+/// **state value**: contains a set of cached values and a list of continuations that register demand
 #[derive(Clone, Default)]
 pub struct StateValue<'a, V: Cachable + 'a> {
     pub(crate) values: HashSet<V>,
@@ -63,7 +64,7 @@ impl<V: Cachable + Display> Display for StateValue<'_, V> {
     }
 }
 
-
+/// **state**: a mapping from a string key to a set of cached values and a list of continuations to register demand
 #[derive(Clone, Default)]
 pub struct State<'a, V: Cachable + 'a> {
     map: HashMap<String, StateValue<'a, V>>

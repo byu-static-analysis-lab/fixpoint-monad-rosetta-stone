@@ -4,6 +4,12 @@ use crate::monad::{Continuation, Monad, Transformer};
 use crate::state::{State, StateValue};
 use crate::{MakeKey, Cachable};
 
+/// **memo**: memoize a function with demand-driven fixed point computation
+/**   
+- First call: register continuation, compute, deliver results
+- Later calls: register continuation, deliver cached results
+- When new values arrive via deliver, all waiting continuations receive them
+*/
 #[derive(Clone)]
 pub struct Memo<'a, V: Cachable + 'a, Args: Clone + MakeKey + 'a> {
     tag: String,
@@ -64,6 +70,12 @@ impl<'a, V: Cachable + 'a> Memo<'a, V, String> {
     }
 }
 
+/// **deliver**: propagate a new value to all waiting continuations
+/**
+- Once given a key, (deliver key) is itself a continuation
+- If value already seen, do nothing (fixed point for this value)
+- Otherwise, add to cache and notify all waiters
+*/
 pub fn deliver<'a, V: Cachable + 'a>(key: &str) -> Continuation<'a, V> {
     let key = key.to_string();
     Continuation::new(move |vs: Vec<V>| {

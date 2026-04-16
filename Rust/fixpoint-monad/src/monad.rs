@@ -3,6 +3,7 @@ use std::rc::Rc;
 use crate::Cachable;
 use crate::state::State;
 
+/// **tranformer**: takes in a state and updates the state and returns it.
 #[derive(Clone)]
 pub struct Transformer<'a, V: Cachable + 'a>(Rc<RefCell<dyn FnMut(State<'a, V>) -> State<'a, V> + 'a>>);
 
@@ -16,6 +17,7 @@ impl<'a, V: Cachable + 'a> Transformer<'a, V> {
     }
 }
 
+/// **continuation**: takes in a cachable value and returns a state transformer
 #[derive(Clone)]
 pub struct Continuation<'a, V: Cachable + 'a>(Rc<RefCell<dyn FnMut(Vec<V>) -> Transformer<'a, V> + 'a>>);
 
@@ -30,19 +32,20 @@ impl<'a, V: Cachable + 'a> Continuation<'a, V> {
 }
 
 /// # Monad
-///
-/// This is a continuation monad composed with a state monad.
-/// The state is a memo table mapping keys to Values and Continuations
-///
-/// ## Enables
-/// - Nondeterminism: exploring multiple abstract values
-/// - Memoization: caching results and detecting fixed points
-/// - Demand-driven iteration: when new values appear, they delivered to all waiting continuations
-///
-/// ## Type
-/// `V`: a Cachable Value
-///
-/// `Fn(Fn(Vec<V>) -> Fn(State) -> State) -> Fn(State -> State)`
+/**
+This is a continuation monad composed with a state monad.
+The state is a memo table mapping keys to Values and Continuations
+
+## Enables
+- Nondeterminism: exploring multiple abstract values
+- Memoization: caching results and detecting fixed points
+- Demand-driven iteration: when new values appear, they delivered to all waiting continuations
+
+## Type
+`V`: a Cachable Value
+
+`Fn(Fn(Vec<V>) -> Fn(State) -> State) -> Fn(State -> State)`
+*/
 #[derive(Clone)]
 pub struct Monad<'a, V: Cachable + 'a>(Rc<RefCell<dyn FnMut(Continuation<'a, V>) -> Transformer<'a, V> + 'a>>);
 
@@ -56,9 +59,14 @@ impl<'a, V: Cachable + 'a> Monad<'a, V> {
     pub fn apply(&self, continuation: Continuation<'a, V>) -> Transformer<'a, V> {
         self.0.borrow_mut()(continuation)
     }
+
+    /// **inject**: inject value into the monad
+    /// This is what is commonly called `return` in other languages
     pub fn inject(value: V) -> Monad<'a, V> {
         Self::inject_values([value])
     }
+
+    /// **inject_values**: inject values into the monad
     pub fn inject_values(values: impl IntoIterator<Item=V>) -> Monad<'a, V> {
         let values: Vec<V> = values.into_iter().collect::<Vec<_>>();
         Monad(Rc::new(RefCell::new(move |continuation: Continuation<'a, V>| {
@@ -66,6 +74,8 @@ impl<'a, V: Cachable + 'a> Monad<'a, V> {
         })))
     }
 
+    /// **and_then**: sequence computations, spreading the value list to f via apply
+    /// This is what is commonly called `bind` or `>>=` in Haskell
     pub fn and_then<F>(self, f: F) -> Monad<'a, V>
     where
         F: FnMut(Vec<V>) -> Monad<'a, V> + 'a
@@ -81,6 +91,7 @@ impl<'a, V: Cachable + 'a> Monad<'a, V> {
         })))
     }
 
+    /// **each**: nondeterministic choice — run all computations, threading state
     pub fn each(cs: impl IntoIterator<Item=Monad<'a, V>>) -> Monad<'a, V> {
         let cs = cs.into_iter().collect::<Vec<_>>();
         Monad(Rc::new(RefCell::new(move |continuation: Continuation<'a, V>| {
@@ -96,10 +107,12 @@ impl<'a, V: Cachable + 'a> Monad<'a, V> {
         })))
     }
 
+    // **fail**: no results (each with zero computations)
     pub fn fail() -> Monad<'a, V> {
         Self::each([])
     }
 
+    /// **run**: runs the monad to completion
     pub fn run(self) -> State<'a, V> {
         self.apply(Continuation::new(|_: Vec<V>| {
             Transformer::new(|s: State<'a, V>| {
