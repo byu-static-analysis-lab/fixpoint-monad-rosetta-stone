@@ -119,7 +119,7 @@ class ContinuationMonad:
         return ContinuationMonad(lambda continuation: continuation(args))
     
     def bind(self, f):
-        return ContinuationMonad(lambda cont: Continuation(lambda *args: f(*args)))
+        return ContinuationMonad(lambda _: Continuation(lambda *args: f(*args)))
     
     @staticmethod
     def each(*monads):
